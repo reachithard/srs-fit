@@ -103,11 +103,13 @@ srs_error_t do_main(int argc, char** argv, char** envp)
     }
 #endif
 
+    // 这里进行全局变量初始化
     // Initialize global and thread-local variables.
     if ((err = srs_global_initialize()) != srs_success) {
         return srs_error_wrap(err, "global init");
     }
 
+    // st 协程库初始化
     if ((err = SrsThreadPool::setup_thread_locals()) != srs_success) {
         return srs_error_wrap(err, "thread init");
     }
@@ -133,31 +135,32 @@ srs_error_t do_main(int argc, char** argv, char** envp)
 #endif
 
     // Ignore any error while detecting docker.
-    if ((err = srs_detect_docker()) != srs_success) {
+    if ((err = srs_detect_docker()) != srs_success) { // 检查是否是docker启动 只是设置了一个变量
         srs_error_reset(err);
     }
     
     // never use srs log(srs_trace, srs_error, etc) before config parse the option,
     // which will load the log config and apply it.
-    if ((err = _srs_config->parse_options(argc, argv)) != srs_success) {
+    if ((err = _srs_config->parse_options(argc, argv)) != srs_success) { // llw todo 解析config配置文件，类似于nginx
         return srs_error_wrap(err, "config parse options");
     }
     
     // change the work dir and set cwd.
     int r0 = 0;
     string cwd = _srs_config->get_work_dir();
-    if (!cwd.empty() && cwd != "./" && (r0 = chdir(cwd.c_str())) == -1) {
+    if (!cwd.empty() && cwd != "./" && (r0 = chdir(cwd.c_str())) == -1) { // 改变cwd
         return srs_error_new(-1, "chdir to %s, r0=%d", cwd.c_str(), r0);
     }
-    if ((err = _srs_config->initialize_cwd()) != srs_success) {
+    if ((err = _srs_config->initialize_cwd()) != srs_success) { // 设置cwd
         return srs_error_wrap(err, "config cwd");
     }
     
     // config parsed, initialize log.
-    if ((err = _srs_log->initialize()) != srs_success) {
+    if ((err = _srs_log->initialize()) != srs_success) { // 日志初始化
         return srs_error_wrap(err, "log initialize");
     }
 
+    // 检查是否有环境变量
     // Detect whether set SRS config by envrionment variables.
     for (char** pp = envp; *pp; pp++) {
         char* p = *pp;
@@ -214,19 +217,19 @@ srs_error_t do_main(int argc, char** argv, char** envp)
         }
 #endif
         
-        string sss = ss.str();
+        string sss = ss.str(); // 只是打一下日志
         if (!sss.empty()) {
             srs_trace(sss.c_str());
         }
     }
     
     // we check the config when the log initialized.
-    if ((err = _srs_config->check_config()) != srs_success) {
+    if ((err = _srs_config->check_config()) != srs_success) { // llw todo 检查配置
         return srs_error_wrap(err, "check config");
     }
     
     // features
-    show_macro_features();
+    show_macro_features(); // 一些宏定义
 
 #ifdef SRS_GPERF
     // For tcmalloc, use slower release rate.
@@ -242,8 +245,8 @@ srs_error_t do_main(int argc, char** argv, char** envp)
     __asan_set_error_report_callback(asan_report_callback);
 #endif
 
-    err = run_directly_or_daemon();
-    srs_free_global_system_ips();
+    err = run_directly_or_daemon(); // 跑实际的启动代码
+    srs_free_global_system_ips(); // 释放getipaddrs获取的ips
     if (err != srs_success) {
         return srs_error_wrap(err, "run");
     }
@@ -253,6 +256,7 @@ srs_error_t do_main(int argc, char** argv, char** envp)
 
 int main(int argc, char** argv, char** envp)
 {
+    // 这里是实际的main
     srs_error_t err = do_main(argc, argv, envp);
 
     if (err != srs_success) {
@@ -436,7 +440,7 @@ srs_error_t run_directly_or_daemon()
     srs_error_t err = srs_success;
 
     // Try to load the config if docker detect failed.
-    if (!_srs_in_docker) {
+    if (!_srs_in_docker) { // 之前检查过这个，以及设置过标志 如果跑在docker里 检查一下配置
         _srs_in_docker = _srs_config->get_in_docker();
         if (_srs_in_docker) {
             srs_trace("enable in_docker by config");
@@ -445,22 +449,23 @@ srs_error_t run_directly_or_daemon()
 
     // Load daemon from config, disable it for docker.
     // @see https://github.com/ossrs/srs/issues/1594
-    bool run_as_daemon = _srs_config->get_daemon();
+    bool run_as_daemon = _srs_config->get_daemon(); // 检查daemon是否开启
     if (run_as_daemon && _srs_in_docker && _srs_config->disable_daemon_for_docker()) {
         srs_warn("disable daemon for docker");
         run_as_daemon = false;
     }
     
     // If not daemon, directly run hybrid server.
-    if (!run_as_daemon) {
-        if ((err = run_in_thread_pool()) != srs_success) {
+    if (!run_as_daemon) { // 是否开启daemon
+        if ((err = run_in_thread_pool()) != srs_success) { // 使用线程池跑服务
             return srs_error_wrap(err, "run thread pool");
         }
         return srs_success;
     }
     
     srs_trace("start daemon mode...");
-    
+
+    // llw todo 之后的是跑daemon，但他这孙子进程跑，有点不符合
     int pid = fork();
     
     if(pid < 0) {
@@ -491,7 +496,7 @@ srs_error_t run_directly_or_daemon()
     
     // son
     srs_trace("son(daemon) process running.");
-    
+    // 孙子进程跑实际的线程池
     if ((err = run_in_thread_pool()) != srs_success) {
         return srs_error_wrap(err, "daemon run thread pool");
     }
@@ -502,6 +507,7 @@ srs_error_t run_directly_or_daemon()
 srs_error_t run_hybrid_server(void* arg);
 srs_error_t run_in_thread_pool()
 {
+    // 检查是否是单线程启动 如果是单线程 则单线程启动，否则线程池启动 run_hybrid_server是实际启动代码
 #ifdef SRS_SINGLE_THREAD
     srs_trace("Run in single thread mode");
     return run_hybrid_server(NULL);
@@ -509,18 +515,18 @@ srs_error_t run_in_thread_pool()
     srs_error_t err = srs_success;
 
     // Initialize the thread pool.
-    if ((err = _srs_thread_pool->initialize()) != srs_success) {
+    if ((err = _srs_thread_pool->initialize()) != srs_success) { // 线程池初始化，一些thread entry
         return srs_error_wrap(err, "init thread pool");
     }
 
     // Start the hybrid service worker thread, for RTMP and RTC server, etc.
-    if ((err = _srs_thread_pool->execute("hybrid", run_hybrid_server, (void*)NULL)) != srs_success) {
+    if ((err = _srs_thread_pool->execute("hybrid", run_hybrid_server, (void*)NULL)) != srs_success) { // 将run_hybrid_server作为实际任务给线程池跑
         return srs_error_wrap(err, "start hybrid server thread");
     }
 
     srs_trace("Pool: Start threads primordial=1, hybrids=1 ok");
 
-    return _srs_thread_pool->run();
+    return _srs_thread_pool->run(); // 线程池启动 这里会等实际返回
 #endif
 }
 
@@ -530,23 +536,24 @@ srs_error_t run_hybrid_server(void* /*arg*/)
     srs_error_t err = srs_success;
 
     // Create servers and register them.
-    _srs_hybrid->register_server(new SrsServerAdapter());
+    // _srs_hybrid 在全局初始化时new的
+    _srs_hybrid->register_server(new SrsServerAdapter()); // llw todo srs 服务器
 
 #ifdef SRS_SRT
-    _srs_hybrid->register_server(new SrsSrtServerAdapter());
+    _srs_hybrid->register_server(new SrsSrtServerAdapter()); // llw todo srt 服务器
 #endif
 
 #ifdef SRS_RTC
-    _srs_hybrid->register_server(new RtcServerAdapter());
+    _srs_hybrid->register_server(new RtcServerAdapter()); // llw todo rtc 服务器
 #endif
 
     // Do some system initialize.
-    if ((err = _srs_hybrid->initialize()) != srs_success) {
+    if ((err = _srs_hybrid->initialize()) != srs_success) { // 服务初始化
         return srs_error_wrap(err, "hybrid initialize");
     }
 
     // Circuit breaker to protect server, which depends on hybrid.
-    if ((err = _srs_circuit_breaker->initialize()) != srs_success) {
+    if ((err = _srs_circuit_breaker->initialize()) != srs_success) { // 熔断器初始化 注册到了_srs_hybrid的一秒定时器，on_timer实际逻辑 但实际代码是进行统计了服务器状态
         return srs_error_wrap(err, "init circuit breaker");
     }
 
@@ -557,7 +564,7 @@ srs_error_t run_hybrid_server(void* /*arg*/)
 #endif
 
     // Should run util hybrid servers all done.
-    if ((err = _srs_hybrid->run()) != srs_success) {
+    if ((err = _srs_hybrid->run()) != srs_success) { // llw todo 实际的跑service
         return srs_error_wrap(err, "hybrid run");
     }
 

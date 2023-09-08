@@ -125,12 +125,13 @@ ISrsHybridServer::~ISrsHybridServer()
 SrsHybridServer::SrsHybridServer()
 {
     // Create global shared timer.
+    // 定时器 触发on_timer函数
     timer20ms_ = new SrsFastTimer("hybrid", 20 * SRS_UTIME_MILLISECONDS);
     timer100ms_ = new SrsFastTimer("hybrid", 100 * SRS_UTIME_MILLISECONDS);
     timer1s_ = new SrsFastTimer("hybrid", 1 * SRS_UTIME_SECONDS);
     timer5s_ = new SrsFastTimer("hybrid", 5 * SRS_UTIME_SECONDS);
 
-    clock_monitor_ = new SrsClockWallMonitor();
+    clock_monitor_ = new SrsClockWallMonitor(); // llw todo
 }
 
 SrsHybridServer::~SrsHybridServer()

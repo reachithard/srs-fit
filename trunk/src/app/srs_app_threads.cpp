@@ -304,39 +304,40 @@ srs_error_t srs_global_initialize()
     srs_error_t err = srs_success;
 
     // Root global objects.
-    _srs_log = new SrsFileLog();
-    _srs_context = new SrsThreadContext();
-    _srs_config = new SrsConfig();
+    _srs_log = new SrsFileLog(); // 日志
+    _srs_context = new SrsThreadContext(); // thread 上下文
+    _srs_config = new SrsConfig(); // 配置
 
     // The clock wall object.
-    _srs_clock = new SrsWallClock();
+    _srs_clock = new SrsWallClock(); // llw todo
 
     // The pps cids depends by st init.
-    _srs_pps_cids_get = new SrsPps();
-    _srs_pps_cids_set = new SrsPps();
+    _srs_pps_cids_get = new SrsPps(); // llw todo
+    _srs_pps_cids_set = new SrsPps(); // llw todo
 
     // The global objects which depends on ST.
-    _srs_hybrid = new SrsHybridServer();
-    _srs_sources = new SrsLiveSourceManager();
-    _srs_stages = new SrsStageManager();
-    _srs_circuit_breaker = new SrsCircuitBreaker();
+    _srs_hybrid = new SrsHybridServer(); // 一些定时器
+    _srs_sources = new SrsLiveSourceManager(); // live source的管理 其中pool在rtmp里面被用到了
+    _srs_stages = new SrsStageManager(); // llw todo
+    _srs_circuit_breaker = new SrsCircuitBreaker(); // 熔断器
 
 #ifdef SRS_SRT
-    _srs_srt_sources = new SrsSrtSourceManager();
+    _srs_srt_sources = new SrsSrtSourceManager(); // llw todo
 #endif
 
 #ifdef SRS_RTC
-    _srs_rtc_sources = new SrsRtcSourceManager();
-    _srs_blackhole = new SrsRtcBlackhole();
+    _srs_rtc_sources = new SrsRtcSourceManager(); // llw todo
+    _srs_blackhole = new SrsRtcBlackhole(); // llw todo
 
-    _srs_rtc_manager = new SrsResourceManager("RTC", true);
-    _srs_rtc_dtls_certificate = new SrsDtlsCertificate();
+    _srs_rtc_manager = new SrsResourceManager("RTC", true); // llw todo
+    _srs_rtc_dtls_certificate = new SrsDtlsCertificate(); // llw todo
 #endif
 #ifdef SRS_GB28181
     _srs_gb_manager = new SrsResourceManager("GB", true);
 #endif
-    _srs_gc = new SrsLazySweepGc();
+    _srs_gc = new SrsLazySweepGc(); // llw todo
 
+    // llw todo
     // Initialize global pps, which depends on _srs_clock
     _srs_pps_ids = new SrsPps();
     _srs_pps_fids = new SrsPps();
@@ -442,7 +443,7 @@ srs_error_t srs_global_initialize()
 #endif
 
     // Create global async worker for DVR.
-    _srs_dvr_async = new SrsAsyncCallWorker();
+    _srs_dvr_async = new SrsAsyncCallWorker(); // 异步处理 会将execute的任务压入任务队列，然后调用
 
 #ifdef SRS_APM
     // Initialize global TencentCloud CLS object.
@@ -452,7 +453,7 @@ srs_error_t srs_global_initialize()
 
     _srs_reload_err = srs_success;
     _srs_reload_state = SrsReloadStateInit;
-    _srs_reload_id = srs_random_str(7);
+    _srs_reload_id = srs_random_str(7); // 随机id
 
     return err;
 }
@@ -676,7 +677,7 @@ srs_error_t SrsThreadPool::execute(string label, srs_error_t (*start)(void* arg)
 
     // https://man7.org/linux/man-pages/man3/pthread_create.3.html
     pthread_t trd;
-    int r0 = pthread_create(&trd, NULL, SrsThreadPool::start, entry);
+    int r0 = pthread_create(&trd, NULL, SrsThreadPool::start, entry); // 启动一个线程 去跑SrsThreadPool::start
     if (r0 != 0) {
         entry->err = srs_error_new(ERROR_THREAD_CREATE, "create thread %s, r0=%d", label.c_str(), r0);
         return srs_error_copy(entry->err);
@@ -790,8 +791,8 @@ void* SrsThreadPool::start(void* arg)
 
     srs_trace("Thread #%d: run with tid=%d, entry=%p, label=%s, name=%s", entry->num, (int)entry->tid, entry, entry->label.c_str(), entry->name.c_str());
 
-    if ((err = entry->start(entry->arg)) != srs_success) {
-        entry->err = err;
+    if ((err = entry->start(entry->arg)) != srs_success) { // 这里去跑实际的任务
+        entry->err = err; // 复制返回码
     }
 
     // We use a special error to indicates the normally done.
