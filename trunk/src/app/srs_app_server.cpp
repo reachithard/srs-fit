@@ -325,12 +325,12 @@ SrsServer::SrsServer()
     signal_gracefully_quit = false;
     pid_fd = -1;
     
-    signal_manager = new SrsSignalManager(this);
-    conn_manager = new SrsResourceManager("TCP", true);
-    latest_version_ = new SrsLatestVersion();
+    signal_manager = new SrsSignalManager(this); // 信号管理 会启动一个协程，然后触发SrsSignalManager::cycle 主要是读取一个pipe，然后进行处理 server->on_signal(signo); 见SrsServer::on_signal
+    conn_manager = new SrsResourceManager("TCP", true); // llw TODO 主要是connect的管理
+    latest_version_ = new SrsLatestVersion(); // 版本
     ppid = ::getppid();
 
-    rtmp_listener_ = new SrsMultipleTcpListeners(this);
+    rtmp_listener_ = new SrsMultipleTcpListeners(this); // llw TODO rtmp服务
     api_listener_ = new SrsTcpListener(this);
     apis_listener_ = new SrsTcpListener(this);
     http_listener_ = new SrsTcpListener(this);
@@ -351,7 +351,7 @@ SrsServer::SrsServer()
     reuse_api_over_server_ = false;
     reuse_rtc_over_server_ = false;
 
-    http_heartbeat = new SrsHttpHeartbeat();
+    http_heartbeat = new SrsHttpHeartbeat(); // http 心跳服务
     ingester = new SrsIngester();
     trd_ = new SrsSTCoroutine("srs", this, _srs_context->get_id());
     timer_ = NULL;
